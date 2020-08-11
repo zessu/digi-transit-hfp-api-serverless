@@ -1,0 +1,12 @@
+{
+  "name": "backend-recruit-exercise-boilerplate",
+  "version": "1.0.0",
+  "description": "A boilerplate serverless service for MaaS Global backend exercise",
+  "scripts": {},
+  "dependencies": {
+    "aws-sdk": "^2.504.0"
+  },
+  "devDependencies": {
+    "serverless": "^1.49.0"
+  }
+}
