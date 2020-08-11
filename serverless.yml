@@ -3,7 +3,7 @@ service: vehicle-tracking-boilerplate
 provider:
   name: aws
   runtime: nodejs10.x
-  stage: dev
+  stage: ${opt:stage, 'dev'}
   region: eu-west-1
   iamRoleStatements:
     # TODO Fine tune if you want. This only ensure your lambda has access to every services
@@ -14,19 +14,47 @@ provider:
 
 functions:
   vehicle-tracker-request:
-    handler: vehicle-tracker-request/index.requestTracker
+    handler: index.requestTracker
+    description: "Gets location for a vehicle"
+    events: # events that trigger this action
+      - http: # creates an API gateway endpoint
+          method: GET
+          path: /request
 
   vehicle-status-poller:
-    handler: vehicle-status-poller/index.startPolling
+    handler: index.startPolling
 
   vehicle-status-retrieve:
-    handler: vehicle-status-retrieve/index.getVehicleStatus
+    handler: index.getVehicleStatus
 
 package:
   exclude:
     - "node_modules/aws-sdk/**"
 
+custom:
+  webpack:
+    webpackConfig: "webpack.config.js" # Name of webpack configuration file
+    includeModules: false # Node modules configuration for packaging
+    packager: "npm" # Packager that will be used to package your external modules
+    excludeFiles: src/**/*.test.js # Provide a glob for files to ignore
+  TransitTable:
+    name: !Ref VehicleStatusTable
+    arn: !GetAtt VehicleStatusTable.Arn
+
+plugins:
+  - serverless-webpack
+  - serverless-pseudo-parameters
+
 resources:
   Resources:
     VehicleStatusTable:
-      # TODO Dynamo definiton
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Transit-Table-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH

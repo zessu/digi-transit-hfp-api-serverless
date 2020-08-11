@@ -4,9 +4,26 @@
   "description": "A boilerplate serverless service for MaaS Global backend exercise",
   "scripts": {},
   "dependencies": {
-    "aws-sdk": "^2.504.0"
+    "aws-sdk": "^2.504.0",
+    "@middy/core": "^1.1.0",
+    "@middy/http-error-handler": "^1.1.0",
+    "@middy/http-event-normalizer": "^1.1.0",
+    "@middy/http-json-body-parser": "^1.1.0",
+    "@middy/validator": "^1.1.0",
+    "http-errors": "^1.8.0",
+    "uuid": "^8.3.0"
   },
   "devDependencies": {
-    "serverless": "^1.49.0"
+    "babel-core": "^6.26.3",
+    "babel-loader": "^7.1.0",
+    "babel-preset-es2015": "^6.24.1",
+    "eslint": "^7.6.0",
+    "eslint-config-airbnb-base": "^14.2.0",
+    "eslint-plugin-import": "^2.22.0",
+    "serverless": "^1.49.0",
+    "serverless-pseudo-parameters": "^2.5.0",
+    "serverless-webpack": "^5.3.3",
+    "webpack": "^4.44.1",
+    "webpack-node-externals": "^1.5.4"
   }
 }
