@@ -23,6 +23,11 @@ functions:
 
   vehicle-status-poller:
     handler: index.startPolling
+    description: "Starts location tracking for a vehicle"
+    events: # events that trigger this action
+      - http: # creates an API gateway endpoint
+          method: GET
+          path: /request/{id}
 
   vehicle-status-retrieve:
     handler: index.getVehicleStatus
