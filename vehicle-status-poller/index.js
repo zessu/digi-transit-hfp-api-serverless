@@ -1,8 +1,26 @@
 import mqtt from 'mqtt';
+import createError from 'http-errors';
 
 const client = mqtt.connect('mqtt://mqtt.hsl.fi:1883/');
 
-const startPolling = async (vehicleId) => {
+client.on('connect', () => {
+  console.log('connected to the mqtt broker');
+  process.exit(0);
+});
+
+client.on('error', () => {
+  console.log('there was an error');
+  throw new createError.InternalServerError(`There was a problem  trying to poll vehicle with id ${id}`);
+});
+
+client.on('message', ({ topic, message }) => {
+  console.log(`received message ${JSON.parse(topic)}`);
+  console.log(`received message ${JSON.parse(message)}`);
+  process.exit(0);
+});
+
+const poll = (id) => {
+  const vehicleId = id;
   const params = {
     prefix: 'hfp',
     version: 'v2',
@@ -17,7 +35,7 @@ const startPolling = async (vehicleId) => {
     headsign: '+',
     start_time: '+',
     next_stop: '+',
-    geohash_level: '0',
+    geohash_level: '3',
     geohash: '+',
     sid: '+',
   };
@@ -25,17 +43,7 @@ const startPolling = async (vehicleId) => {
   client.subscribe(params, {}, (val) => {
     console.log(JSON.parse(val));
   });
-
-  client.on('connect', () => {
-    console.log('logged something');
-  });
-
-  client.on('error', () => { console.log('there was an error'); });
-
-  client.on('message', ({ topic, message }) => {
-    console.log(`received message ${JSON.parse(topic)}`);
-    console.log(`received message ${JSON.parse(message)}`);
-  });
+  return params;
 };
 
-exports.startPolling = startPolling;
+export default poll;

@@ -15,22 +15,23 @@ provider:
 functions:
   vehicle-tracker-request:
     handler: index.requestTracker
-    description: "Gets location for a vehicle"
-    events: # events that trigger this action
-      - http: # creates an API gateway endpoint
-          method: GET
-          path: /request
-
-  vehicle-status-poller:
-    handler: index.startPolling
-    description: "Starts location tracking for a vehicle"
+    description: "Gets location for a vehicle given id"
     events: # events that trigger this action
       - http: # creates an API gateway endpoint
           method: GET
           path: /request/{id}
 
+  vehicle-status-poller:
+    handler: index.startPolling
+    description: "Starts location tracking for a vehicle"
+
   vehicle-status-retrieve:
     handler: index.getVehicleStatus
+    description: "Retrieves location of a vehicle"
+    events: # events that trigger this action
+      - http: # creates an API gateway endpoint
+          method: GET
+          path: /retreive/{id}
 
 package:
   exclude:
@@ -56,6 +57,17 @@ resources:
       Type: AWS::DynamoDB::Table
       Properties:
         TableName: Transit-Table-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+    TrackedVehicles:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: TrackedVehicles-${self:provider.stage}
         BillingMode: PAY_PER_REQUEST
         AttributeDefinitions:
           - AttributeName: id
