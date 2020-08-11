@@ -11,7 +11,9 @@ const getVehicleStatus = async () => {
   };
 };
 
-const startPolling = async () => {
+const startPolling = async (event) => {
+  const { vehicleId } = event.body;
+  poll(vehicleId);
   const message = 'startPolling has been called';
   return {
     statusCode: 200,
@@ -27,6 +29,6 @@ const requestTracker = async () => {
   };
 };
 
-exports.getVehicleStatus = getVehicleStatus;
-exports.startPolling = startPolling;
-exports.requestTracker = requestTracker;
+exports.getVehicleStatus = commonMiddleware(getVehicleStatus);
+exports.startPolling = commonMiddleware(startPolling);
+exports.requestTracker = commonMiddleware(requestTracker);

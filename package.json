@@ -4,13 +4,14 @@
   "description": "A boilerplate serverless service for MaaS Global backend exercise",
   "scripts": {},
   "dependencies": {
-    "aws-sdk": "^2.504.0",
     "@middy/core": "^1.1.0",
     "@middy/http-error-handler": "^1.1.0",
     "@middy/http-event-normalizer": "^1.1.0",
     "@middy/http-json-body-parser": "^1.1.0",
     "@middy/validator": "^1.1.0",
+    "aws-sdk": "^2.504.0",
     "http-errors": "^1.8.0",
+    "mqtt": "^4.1.0",
     "uuid": "^8.3.0"
   },
   "devDependencies": {
