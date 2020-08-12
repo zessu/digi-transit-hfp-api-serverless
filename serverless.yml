@@ -3,7 +3,7 @@ service: vehicle-tracking-boilerplate
 provider:
   name: aws
   runtime: nodejs10.x
-  stage: ${env:environment}
+  stage: ${self:custom.Environments.devEnv}
   region: eu-west-1
   iamRoleStatements:
     # TODO Fine tune if you want. This only ensure your lambda has access to every service
@@ -56,6 +56,8 @@ custom:
   TrackingTable:
     name: !Ref TrackedVehicles
     arn: !GetAtt TrackedVehicles.Arn
+  Environments:
+    devEnv: dev
 
 plugins:
   - serverless-step-functions

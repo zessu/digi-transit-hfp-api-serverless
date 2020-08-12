@@ -4,7 +4,6 @@ const createError = require('http-errors');
 const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
 
-
 module.exports = function poll(id) {
   const config = new AWS.Config({
     accessKeyId: process.env.awsAccessKeyId,
@@ -19,6 +18,7 @@ module.exports = function poll(id) {
   const client = mqtt.connect('mqtt://mqtt.hsl.fi:1883/');
 
   client.on('message', async (topic, message, packet) => {
+    console.log('received message >>>>>>>>>>>>>>>>>');
     const {
       veh, tst, lat, long, dl,
     } = JSON.parse(message).VP;
@@ -37,6 +37,7 @@ module.exports = function poll(id) {
       if (err) {
         console.log("Error", err);
       } else {
+        console.log('saved records to dynamo');
       }
     });
   });
@@ -54,7 +55,7 @@ module.exports = function poll(id) {
 
   const vehicleId = id;
   // const options = `/hfp/v2/journey/ongoing/vp/bus/+/+/${vehicleId}/+/+/+/+/3/#`;
-  const options = `/hfp/v2/journey/ongoing/vp/bus/+/+/+/+/+/+/+/+/#`;
+  const options = `/hfp/v2/journey/ongoing/vp/bus/+/+/+/+/+/+/+/3/#`;
 
   client.subscribe(options);
 };
