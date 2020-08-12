@@ -12,13 +12,13 @@ const getVehicleStatus = async () => {
   };
 };
 
-const startPolling = async (id) => poll(id);
+const startPolling = async () => poll(12);
 
 const requestTracker = async (event) => {
   const { id } = event.pathParameters;
   let params;
   try {
-    params = startPolling(id);
+    params = startPolling();
   } catch (error) {
     console.error(`error is ${error}`);
     throw new createError.InternalServerError('an error has occurred processing that request');
