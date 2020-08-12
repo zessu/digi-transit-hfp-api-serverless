@@ -3,14 +3,17 @@ service: vehicle-tracking-boilerplate
 provider:
   name: aws
   runtime: nodejs10.x
-  stage: ${opt:stage, 'dev'}
+  stage: ${env:environment}
   region: eu-west-1
   iamRoleStatements:
-    # TODO Fine tune if you want. This only ensure your lambda has access to every services
+    # TODO Fine tune if you want. This only ensure your lambda has access to every service
     - Effect: "Allow"
       Action:
         - "*"
       Resource: "*"
+  environment:
+    VEHICLE_STATUS_TABLE: ${self:custom.TransitTable.name}
+    TRACKED_VEHICLES: ${self:custom.TrackingTable.name}
 
 functions:
   vehicle-tracker-request:
@@ -23,7 +26,11 @@ functions:
 
   vehicle-status-poller:
     handler: index.startPolling
-    description: "Starts location tracking for a vehicle"
+    description: "polls vehicle location"
+    events: # events that trigger this action
+      - http: # creates an API gateway endpoint
+          method: GET
+          path: /poll/
 
   vehicle-status-retrieve:
     handler: index.getVehicleStatus
@@ -46,8 +53,12 @@ custom:
   TransitTable:
     name: !Ref VehicleStatusTable
     arn: !GetAtt VehicleStatusTable.Arn
+  TrackingTable:
+    name: !Ref TrackedVehicles
+    arn: !GetAtt TrackedVehicles.Arn
 
 plugins:
+  - serverless-step-functions
   - serverless-webpack
   - serverless-pseudo-parameters
 
