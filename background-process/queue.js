@@ -11,7 +11,7 @@ module.exports = function queue(workerData) {
       if (code !== 0)
         reject(new Error(`stopped tracking vehicle`));
     })
-  }).catch(error => console.log(`error is ${error}`));
+  });
 }
 
 // const params = {

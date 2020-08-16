@@ -21,7 +21,7 @@ app.get('/request', (req, res) => {
       res.send(message);
     })
     .catch(error => {
-      return new createError.InternalServerError();
+      return new createError.InternalServerError(error);
     });
 });
 

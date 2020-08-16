@@ -20,12 +20,12 @@ client.on('message', async (topic, message, packet) => {
 
   console.log('received msg ->>>>>>>>>>>>>>>>>');
   const {
-    veh, tst, lat, long, dl,
+    veh, tst, lat, long, dl, oper
   } = JSON.parse(message).VP;
 
   const data = {
     id: uuidv4(),
-    veh, long, lat, tst, dl,
+    veh, long, lat, tst, dl, oper
   };
 
   const params = {
@@ -55,7 +55,9 @@ client.on('error', (error) => {
 
 const vehicleId = workerData;
 // const options = `/hfp/v2/journey/ongoing/vp/bus/+/+/${vehicleId}/+/+/+/+/3/#`;
-const topic = `/hfp/v2/journey/ongoing/vp/bus/+/+/${vehicleId}/+/+/+/+/3/#`;
+const topic = `/hfp/v2/journey/ongoing/vp/+/+/${vehicleId}/+/+/+/+/+/3/#`;
+
+console.log(topic);
 
 client.subscribe(topic, (err, granted) => {
   if (err) {
