@@ -36,6 +36,7 @@ client.on('message', async (topic, message, packet) => {
   dynamo.put(params, function (err, data) {
     if (err) {
       // do nothing, wait for next saving iteration
+      console.log(`dynamo error : ${err}`);
     } else {
       console.log('saved records to dynamo');
     }
@@ -55,7 +56,7 @@ client.on('error', (error) => {
 
 const vehicleId = workerData;
 // const options = `/hfp/v2/journey/ongoing/vp/bus/+/+/${vehicleId}/+/+/+/+/3/#`;
-const topic = `/hfp/v2/journey/ongoing/vp/+/+/${vehicleId}/+/+/+/+/+/3/#`;
+const topic = `/hfp/v2/journey/ongoing/vp/+/+/${vehicleId}/+/+/+/+/+/0/#`;
 
 console.log(topic);
 
