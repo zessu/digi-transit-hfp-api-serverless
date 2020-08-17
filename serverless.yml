@@ -2,7 +2,7 @@ service: vehicle-tracking-boilerplate
 
 provider:
   name: aws
-  runtime: nodejs10.x
+  runtime: nodejs12.x
   stage: ${self:custom.Environments.devEnv}
   region: eu-west-1
   iamRoleStatements:
@@ -51,10 +51,10 @@ custom:
     packager: "npm" # Packager that will be used to package your external modules
     excludeFiles: src/**/*.test.js # Provide a glob for files to ignore
   TransitTable:
-    name: !Ref VehicleStatusTable
+    name: !Ref "VehicleStatusTable"
     arn: !GetAtt VehicleStatusTable.Arn
   TrackingTable:
-    name: !Ref TrackedVehicles
+    name: !Ref "TrackedVehicles"
     arn: !GetAtt TrackedVehicles.Arn
   Environments:
     devEnv: dev
@@ -62,7 +62,6 @@ custom:
 plugins:
   - serverless-webpack
   - serverless-pseudo-parameters
-  - serverless-vpc-plugin
 
 resources:
   Resources:
@@ -70,104 +69,89 @@ resources:
       Type: AWS::EC2::VPC
       Properties:
         EnableDnsSupport: true
-        EnableDnsHostnames: false
-        CidrBlock: "20.0.0.0/16"
-
-      # internet gateway
-    InternetGateway:
-      Type: AWS::EC2::InternetGateway
-    AttachGateway: # attach vpc to internet gateway, they both have to be created
-      Type: AWS::EC2::VPCGatewayAttachment
-      Properties:
-        VpcId: !Ref VPC
-        InternetGatewayId: !Ref InternetGateway
-
-    # A NAT Gateway:
-    NATGateway:
-      Type: AWS::EC2::NatGateway
-      Properties:
-        AllocationId: !GetAtt ElasticIPAddress.AllocationId
-        SubnetId: !Ref PublicSubnetOne
-        Tags:
-          - Key: Name
-            Value: "gate way"
-    ElasticIPAddress:
-      Type: AWS::EC2::EIP
-      Properties:
-        Domain: VPC
+        EnableDnsHostnames: true
+        CidrBlock: "10.0.0.0/16"
 
     # Two public subnets where load balancer and NAT gateway will run
     PublicSubnetOne:
       Type: AWS::EC2::Subnet
       Properties:
-        AvailabilityZone: "eu-west-1a"
-        VpcId: !Ref VPC
-        CidrBlock: "20.0.1.0/24"
-        Tags:
-          - Key: Name
-            Value: "subnet 1 public"
+        AvailabilityZone:
+          Fn::Select:
+            - 0
+            - Fn::GetAZs: { Ref: "AWS::Region" }
+        VpcId: !Ref "VPC"
+        CidrBlock: "10.0.0.0/24"
+        MapPublicIpOnLaunch: true
     PublicSubnetTwo:
       Type: AWS::EC2::Subnet
       Properties:
-        AvailabilityZone: "eu-west-1b"
-        VpcId: !Ref VPC
-        CidrBlock: "20.0.2.0/24"
-        Tags:
-          - Key: Name
-            Value: "subnet 2 public"
+        AvailabilityZone:
+          Fn::Select:
+            - 1
+            - Fn::GetAZs: { Ref: "AWS::Region" }
+        VpcId: !Ref "VPC"
+        CidrBlock: "10.0.1.0/24"
+        MapPublicIpOnLaunch: true
 
     # Two private subnets, where containers will run
     PrivateSubnetOne:
       Type: AWS::EC2::Subnet
       Properties:
-        AvailabilityZone: "eu-west-1a"
-        VpcId: !Ref VPC
-        CidrBlock: "20.0.3.0/24"
-        Tags:
-          - Key: Name
-            Value: "subnet 1 private"
+        AvailabilityZone:
+          Fn::Select:
+            - 0
+            - Fn::GetAZs: { Ref: "AWS::Region" }
+        VpcId: !Ref "VPC"
+        CidrBlock: "10.0.2.0/24"
+        MapPublicIpOnLaunch: true
 
     PrivateSubnetTwo:
       Type: AWS::EC2::Subnet
       Properties:
-        AvailabilityZone: "eu-west-1b"
-        VpcId: !Ref VPC
-        CidrBlock: "20.0.4.0/24"
+        AvailabilityZone:
+          Fn::Select:
+            - 1
+            - Fn::GetAZs: { Ref: "AWS::Region" }
+        VpcId: !Ref "VPC"
+        CidrBlock: "10.0.3.0/24"
+
+      # internet gateway
+    InternetGateway:
+      Type: AWS::EC2::InternetGateway
+    GatewayAttachement: # attach vpc to internet gateway, they both have to be created
+      Type: AWS::EC2::VPCGatewayAttachment
+      Properties:
+        VpcId: !Ref "VPC"
+        InternetGatewayId: !Ref "InternetGateway"
+
+    # A NAT Gateway:
+    NATGateway:
+      Type: AWS::EC2::NatGateway
+      DependsOn: GatewayAttachement
+      Properties:
+        AllocationId: !GetAtt ElasticIPAddress.AllocationId
+        SubnetId: !Ref "PublicSubnetOne"
         Tags:
           - Key: Name
-            Value: "subnet 2 private"
+            Value: my nat gateway
+
+    ElasticIPAddress:
+      Type: AWS::EC2::EIP
+      Properties:
+        Domain: vpc
 
     PublicRouteTable: # create route table
       Type: AWS::EC2::RouteTable
       Properties:
-        VpcId: !Ref VPC # point to vpc
-        Tags:
-          - Key: Name
-            Value: Public
-
+        VpcId: !Ref "VPC" # point to vpc
     PublicRoute: # public route table definition
       Type: AWS::EC2::Route
-      DependsOn: AttachGateway # has to finish creating before this is accessed
-      Properties:
-        RouteTableId: !Ref PublicRouteTable
-        DestinationCidrBlock: 0.0.0.0/0
-        GatewayId: !Ref InternetGateway
-
-    PrivateRouteTable: # private route table definition
-      Type: AWS::EC2::RouteTable
-      Properties:
-        VpcId: !Ref VPC
-        Tags:
-          - Key: Name
-            Value: Private
-
-    PrivateRoute:
-      Type: AWS::EC2::Route
+      DependsOn: GatewayAttachement # has to finish creating before this is accessed
       Properties:
         RouteTableId: !Ref "PublicRouteTable"
         DestinationCidrBlock: "0.0.0.0/0"
-        NatGatewayId: !Ref NATGateway
-
+        GatewayId: !Ref "InternetGateway"
     # subnet associations to route tables
     PublicSubnetOneRouteTableAssociation:
       Type: AWS::EC2::SubnetRouteTableAssociation
@@ -179,6 +163,17 @@ resources:
       Properties:
         SubnetId: !Ref PublicSubnetTwo
         RouteTableId: !Ref PublicRouteTable
+
+    PrivateRouteTable: # private route table definition
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref "VPC"
+    PrivateRoute:
+      Type: AWS::EC2::Route
+      Properties:
+        RouteTableId: !Ref "PublicRouteTable"
+        DestinationCidrBlock: "0.0.0.0/0"
+        NatGatewayId: !Ref "NATGateway"
     PrivateSubnetOneRouteTableAssociation:
       Type: AWS::EC2::SubnetRouteTableAssociation
       Properties:

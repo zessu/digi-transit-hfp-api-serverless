@@ -17,7 +17,6 @@
     "mqtt": "^4.1.0",
     "serverless": "^1.49.0",
     "serverless-http": "^2.5.0",
-    "serverless-vpc-plugin": "^1.0.0",
     "uuid": "^8.3.0"
   },
   "devDependencies": {
