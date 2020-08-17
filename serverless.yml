@@ -64,6 +64,29 @@ plugins:
   - serverless-pseudo-parameters
 
 resources:
+  Parameters:
+    ServiceName:
+      Type: String
+      Default: hslpoller
+    ImageUrl:
+      Type: String
+      Default: 034100442440.dkr.ecr.eu-west-1.amazonaws.com/hslpoller:latest
+    ContainerPort:
+      Type: String
+      Default: "80"
+    ContainerCpu:
+      Type: String
+      Default: "256"
+    ContainerMemory:
+      Type: String
+      Default: "0.5GB"
+    Path:
+      Type: String
+      Default: "*"
+    DesiredCount:
+      Type: String
+      Default: "2"
+
   Resources:
     VPC:
       Type: AWS::EC2::VPC
@@ -83,6 +106,7 @@ resources:
         VpcId: !Ref "VPC"
         CidrBlock: "10.0.0.0/24"
         MapPublicIpOnLaunch: true
+
     PublicSubnetTwo:
       Type: AWS::EC2::Subnet
       Properties:
@@ -118,6 +142,7 @@ resources:
       # internet gateway
     InternetGateway:
       Type: AWS::EC2::InternetGateway
+
     GatewayAttachement: # attach vpc to internet gateway, they both have to be created
       Type: AWS::EC2::VPCGatewayAttachment
       Properties:
@@ -128,6 +153,7 @@ resources:
       Type: AWS::EC2::RouteTable
       Properties:
         VpcId: !Ref "VPC" # point to vpc
+
     PublicRoute: # public route table definition
       Type: AWS::EC2::Route
       DependsOn: GatewayAttachement # has to finish creating before this is accessed
@@ -166,6 +192,7 @@ resources:
       Type: AWS::EC2::RouteTable
       Properties:
         VpcId: !Ref "VPC"
+
     PrivateRoute:
       Type: AWS::EC2::Route
       Properties:
@@ -195,6 +222,7 @@ resources:
         KeySchema:
           - AttributeName: id
             KeyType: HASH
+
     TrackedVehicles:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -206,3 +234,164 @@ resources:
         KeySchema:
           - AttributeName: id
             KeyType: HASH
+
+    # ECS Resources
+    ECSCluster:
+      Type: AWS::ECS::Cluster
+
+    # Task definition that ECS is going to run
+    FargateTaskDefinition:
+      Type: AWS::ECS::TaskDefinition
+      # Makes sure the log group is created before it is used.
+      DependsOn: LogGroup
+      Properties:
+        Family: !Ref "ServiceName"
+        Cpu: "256"
+        Memory: 0.5GB
+        NetworkMode: awsvpc
+        RequiresCompatibilities:
+          - FARGATE
+        ExecutionRoleArn: !Ref ExecutionRole
+        TaskRoleArn: !Ref TaskRole
+        ContainerDefinitions:
+          - Name: !Ref "ServiceName"
+            Image: "#{AWS::AccountId}.dkr.ecr.#{AWS::Region}.amazonaws.com/#{ImageUrl}"
+            PortMappings:
+              - ContainerPort: 8080
+            LogConfiguration:
+              LogDriver: awslogs
+              Options:
+                awslogs-region: !Ref AWS::Region
+                awslogs-group: !Ref LogGroup
+                awslogs-stream-prefix: ecs
+            Secrets:
+              - Name: "environment"
+                ValueFrom: "arn:aws:secretsmanager:eu-west-1:034100442440:secret:hslpollersecrets-edUXWC"
+
+    ExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: !Join ["", [!Ref ServiceName, ExecutionRole]]
+        AssumeRolePolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: ecs-tasks.amazonaws.com
+              Action: "sts:AssumeRole"
+        ManagedPolicyArns:
+          - "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+    # A role for the containers
+    TaskRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: !Join ["", [!Ref ServiceName, TaskRole]]
+        AssumeRolePolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: ecs-tasks.amazonaws.com
+              Action: "sts:AssumeRole"
+
+    LogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: !Join ["", [/ecs/, !Ref ServiceName, TaskDefinition]]
+
+      # The service. The service is a resource which allows you to run multiple
+    # copies of a type of task, and gather up their logs and metrics, as well
+    # as monitor the number of running tasks and replace any that have crashed
+
+    ListenerHTTP: #specifies a listener for our load balancer
+      Type: AWS::ElasticLoadBalancingV2::Listener
+      Properties:
+        DefaultActions:
+          - TargetGroupArn: !Ref TargetGroup
+            Type: forward
+        LoadBalancerArn: !Ref LoadBalancer
+        Port: 80
+        Protocol: HTTP
+
+    LoadBalancer:
+      Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+      Properties:
+        LoadBalancerAttributes:
+          # this is the default, but is specified here in case it needs to be changed
+          - Key: idle_timeout.timeout_seconds
+            Value: "60"
+        Name: !Join ["", [!Ref ServiceName, LoadBalancer]]
+        # "internal" is also an option
+        Scheme: internet-facing
+        SecurityGroups:
+          - !Ref LoadBalancerSecurityGroup
+        Subnets: # where the load balancer runs
+          - !Ref PublicSubnetOne
+          - !Ref PublicSubnetTwo
+
+    LoadBalancerSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription:
+          !Join ["", [!Ref ServiceName, LoadBalancerSecurityGroup]]
+        VpcId: !Ref VPC
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIp: 0.0.0.0/0 # will be forwarded to the target group
+
+    TargetGroup:
+      Type: AWS::ElasticLoadBalancingV2::TargetGroup
+      Properties:
+        HealthCheckIntervalSeconds: 30
+        # will look for a 200 status code by default unless specified otherwise
+        HealthCheckPath: "/health"
+        HealthCheckTimeoutSeconds: 5
+        UnhealthyThresholdCount: 2
+        HealthyThresholdCount: 2
+        Name: !Join ["", [!Ref ServiceName, TargetGroup]]
+        Port: !Ref 80
+        Protocol: HTTP
+        TargetGroupAttributes:
+          - Key: deregistration_delay.timeout_seconds
+            Value: "300" # deregistry delay
+        TargetType: ip
+        VpcId: !Ref VPC
+    ContainerSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: !Join ["", [!Ref ServiceName, ContainerSecurityGroup]]
+        VpcId: !Ref VPC
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+    Service:
+      Type: AWS::ECS::Service
+      # This dependency is needed so that the load balancer is setup correctly in time
+      DependsOn:
+        - ListenerHTTP
+      Properties:
+        ServiceName: !Ref ServiceName
+        Cluster: !Ref ECSCluster
+        TaskDefinition: !Ref FargateTaskDefinition
+        DeploymentConfiguration:
+          MinimumHealthyPercent: 100
+          MaximumPercent: 200
+        DesiredCount: 2
+        # This may need to be adjusted if the container takes a while to start up
+        HealthCheckGracePeriodSeconds: 30
+        LaunchType: FARGATE
+        NetworkConfiguration:
+          AwsvpcConfiguration:
+            # change to DISABLED if you're using private subnets that have access to a NAT gateway
+            AssignPublicIp: DISABLED
+            Subnets: # reference to location running containers
+              - !Ref PrivateSubnetOne
+              - !Ref PrivateSubnetTwo
+            SecurityGroups:
+              - !Ref ContainerSecurityGroup
+        LoadBalancers:
+          - ContainerName: !Ref ServiceName
+            ContainerPort: 80
+            TargetGroupArn: !Ref TargetGroup
