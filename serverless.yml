@@ -104,7 +104,6 @@ resources:
             - Fn::GetAZs: { Ref: "AWS::Region" }
         VpcId: !Ref "VPC"
         CidrBlock: "10.0.2.0/24"
-        MapPublicIpOnLaunch: true
 
     PrivateSubnetTwo:
       Type: AWS::EC2::Subnet
@@ -123,23 +122,7 @@ resources:
       Type: AWS::EC2::VPCGatewayAttachment
       Properties:
         VpcId: !Ref "VPC"
-        InternetGatewayId: !Ref "InternetGateway"
-
-    # A NAT Gateway:
-    NATGateway:
-      Type: AWS::EC2::NatGateway
-      DependsOn: GatewayAttachement
-      Properties:
-        AllocationId: !GetAtt ElasticIPAddress.AllocationId
-        SubnetId: !Ref "PublicSubnetOne"
-        Tags:
-          - Key: Name
-            Value: my nat gateway
-
-    ElasticIPAddress:
-      Type: AWS::EC2::EIP
-      Properties:
-        Domain: vpc
+        InternetGatewayId: !Ref InternetGateway
 
     PublicRouteTable: # create route table
       Type: AWS::EC2::RouteTable
@@ -164,6 +147,21 @@ resources:
         SubnetId: !Ref PublicSubnetTwo
         RouteTableId: !Ref PublicRouteTable
 
+    ElasticIPAddress:
+      Type: AWS::EC2::EIP
+      Properties:
+        Domain: VPC
+
+    # A NAT Gateway:
+    NATGateway:
+      Type: AWS::EC2::NatGateway
+      Properties:
+        AllocationId: !GetAtt ElasticIPAddress.AllocationId
+        SubnetId: !Ref "PublicSubnetOne"
+        Tags:
+          - Key: Name
+            Value: my nat gateway
+
     PrivateRouteTable: # private route table definition
       Type: AWS::EC2::RouteTable
       Properties:
@@ -171,8 +169,9 @@ resources:
     PrivateRoute:
       Type: AWS::EC2::Route
       Properties:
-        RouteTableId: !Ref "PublicRouteTable"
+        RouteTableId: !Ref "PrivateRouteTable"
         DestinationCidrBlock: "0.0.0.0/0"
+        # route traffic through the NAT gateway
         NatGatewayId: !Ref "NATGateway"
     PrivateSubnetOneRouteTableAssociation:
       Type: AWS::EC2::SubnetRouteTableAssociation
