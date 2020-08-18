@@ -3,10 +3,12 @@ const AWS = require('aws-sdk');
 const mqtt = require('mqtt');
 const { v4: uuidv4 } = require('uuid');
 
+//TODO configure time outs for polling
+
 const config = new AWS.Config({
   accessKeyId: process.env.awsAccessKeyId,
   secretAccessKey: process.env.awsSecretAccessKey,
-  region: process.env.awsDefaultRegion
+  region: process.env.awsDefaultRegion,
 });
 
 AWS.config.update(config);
@@ -20,12 +22,17 @@ client.on('message', async (topic, message, packet) => {
 
   console.log('received msg ->>>>>>>>>>>>>>>>>');
   const {
-    veh, tst, lat, long, dl, oper
+    veh, tst, lat, long, dl, oper,
   } = JSON.parse(message).VP;
 
   const data = {
     id: uuidv4(),
-    veh, long, lat, tst, dl, oper
+    veh,
+    long,
+    lat,
+    tst,
+    dl,
+    oper,
   };
 
   const params = {
@@ -33,7 +40,7 @@ client.on('message', async (topic, message, packet) => {
     Item: data,
   };
 
-  dynamo.put(params, function (err, data) {
+  dynamo.put(params, (err) => {
     if (err) {
       // do nothing, wait for next saving iteration
       console.log(`dynamo error : ${err}`);
@@ -50,7 +57,6 @@ client.on('connect', () => {
 client.on('error', (error) => {
   console.log(`${error}`);
   client.end();
-  // throw new createError.InternalServerError(`There was a problem  trying to poll vehicle with id ${id}`);
   process.exit(1); // exit worker process
 });
 
