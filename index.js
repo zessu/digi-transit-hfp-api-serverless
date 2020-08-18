@@ -1,34 +1,69 @@
+import AWS from 'aws-sdk';
 import createError from 'http-errors';
-import poll from './vehicle-status-poller/index';
-// import request from './vehicle-tracking-request';
-// import retreive from './vehicle-status-retrieve';
+import fetch from 'node-fetch';
+// import request from './vehicle-tracking-request/index';
+
 import commonMiddleware from './commonMiddleware';
 
-const getVehicleStatus = async () => {
-  const message = 'getVehicleStatus has been called';
-  return {
-    statusCode: 200,
-    body: message,
-  };
-};
+const getVehicleStatus = async () => ({
+  statusCode: 200,
+  body: 'some random string here',
+});
 
-const startPolling = async () => poll(12);
+const startPolling = async () => ({
+  statusCode: 200,
+  body: 'some random string here',
+});
 
 const requestTracker = async (event) => {
   const { id } = event.pathParameters;
-  let params;
+  console.log(`supplied id is ${id}`);
+  const config = new AWS.Config({
+    accessKeyId: process.env.awsAccessKeyId,
+    secretAccessKey: process.env.awsSecretAccessKey,
+    region: process.env.awsDefaultRegion,
+  });
+  AWS.config.update(config);
+  const ecs = new AWS.ECS();
+  const gatewayResource = 'http://hslpollerLoadBalancer-1683342120.eu-west-1.elb.amazonaws.com';
+  const requestUrl = `${gatewayResource}/request/${id}`;
+  const params = {
+    cluster: 'hslpollerCluster',
+    taskDefinition: 'hslpollerTaskDefinition',
+    count: 1,
+    launchType: 'FARGATE',
+    networkConfiguration: {
+      awsvpcConfiguration: {
+        subnets: ['subnet-052b0a2592195b3e1', 'subnet-00b48c7e2fdade5e6'],
+        assignPublicIp: 'DISABLED',
+        securityGroups: [],
+      },
+    },
+  };
   try {
-    params = startPolling();
+    ecs.runTask(params, (err) => {
+      if (err) {
+        console.log(`there was an error ${JSON.stringify(err)}`);
+        return new createError.InternalServerError();
+      }
+      console.log('request was a success');
+      fetch(requestUrl)
+        .then((response) => {
+          console.log(`we got a successful response from the server ${JSON.stringify(response)}`);
+          const payload = response;
+          return {
+            statusCode: 200,
+            body: `${JSON.stringify(payload)}`,
+          };
+        })
+        .catch((error) => { throw new Error(error); }); // caught by the catch block
+    });
   } catch (error) {
     console.error(`error is ${error}`);
-    throw new createError.InternalServerError('an error has occurred processing that request');
+    return new createError.InternalServerError();
   }
-  return {
-    statusCode: 200,
-    body: `${JSON.stringify(params)}`,
-  };
 };
 
-exports.startPolling = startPolling;
+exports.startPolling = commonMiddleware(startPolling);
 exports.getVehicleStatus = commonMiddleware(getVehicleStatus);
 exports.requestTracker = commonMiddleware(requestTracker);

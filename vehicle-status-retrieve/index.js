@@ -1,15 +1,26 @@
 import { AWS } from 'aws-sdk';
 import createError from 'http-errors';
+import applyMiddleware from '../commonMiddleware';
+
+const config = new AWS.Config({
+  accessKeyId: process.env.awsAccessKeyId,
+  secretAccessKey: process.env.awsSecretAccessKey,
+  region: process.env.awsDefaultRegion,
+});
+
+AWS.config.update(config);
 
 const ecs = new AWS.ECS();
 
-exports.getVehicleStatus = async (event) => {
+const getStatus = async (event) => {
   const { id } = event.pathParameters;
+  /// TODO: move the names in environment varibles
   const gatewayResource = 'hslpollerLoadBalancer-1683342120.eu-west-1.elb.amazonaws.com';
   const requestUrl = `${gatewayResource}/request/${id}`;
   const params = {
     cluster: 'hslpollerCluster',
     count: 1,
+    launchType: 'FARGATE',
     taskDefinition: 'hslpollerTaskDefinition',
   };
   try {
@@ -32,3 +43,5 @@ exports.getVehicleStatus = async (event) => {
     throw new createError.InternalServerError('an error has occurred processing that request');
   }
 };
+
+module.exports.getVehicleStatus = applyMiddleware(getStatus);
