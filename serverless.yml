@@ -150,8 +150,8 @@ resources:
         Tags:
           - Key: Name
             Value: "private subnet two"
-
       # internet gateway
+
     InternetGateway:
       Type: AWS::EC2::InternetGateway
 
@@ -273,9 +273,9 @@ resources:
           - FARGATE
         Cpu: "256"
         Memory: 0.5GB
-        ExecutionRoleArn: !Ref ExecutionRole
+        ExecutionRoleArn: !Ref ExecutionRole # for ECS
         # "The Amazon Resource Name (ARN) of an AWS Identity and Access Management (IAM) role that grants containers in the task permission to call AWS APIs on your behalf."
-        TaskRoleArn: !Ref TaskRole
+        TaskRoleArn: !Ref TaskRole # for task
         ContainerDefinitions:
           - Name: !Ref ServiceName
             Image: !Ref ImageUrl
@@ -288,15 +288,15 @@ resources:
                 awslogs-region: !Ref AWS::Region
                 awslogs-group: !Ref LogGroup
                 awslogs-stream-prefix: ecs
-            Secrets:
+            Environment:
               - Name: "environment"
-                ValueFrom: "arn:aws:secretsmanager:eu-west-1:034100442440:secret:hslpollersecrets-edUXWC"
+                Value: "dev"
               - Name: "awsAccessKeyId"
-                ValueFrom: "arn:aws:secretsmanager:eu-west-1:034100442440:secret:hslpollersecrets-edUXWC"
+                Value: "AKIAQP4ELOVEE2P3G55D"
               - Name: "awsSecretAccessKey"
-                ValueFrom: "arn:aws:secretsmanager:eu-west-1:034100442440:secret:hslpollersecrets-edUXWC"
+                Value: "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"
               - Name: "awsDefaultRegion"
-                ValueFrom: "arn:aws:secretsmanager:eu-west-1:034100442440:secret:hslpollersecrets-edUXWC"
+                Value: "eu-west-1"
     # A role needed by ECS
     ExecutionRole:
       Type: AWS::IAM::Role
@@ -307,11 +307,10 @@ resources:
             - Effect: Allow
               Principal:
                 Service: ecs-tasks.amazonaws.com
-              Action:
-                - Name: "sts:AssumeRole"
+              Action: "sts:AssumeRole"
         ManagedPolicyArns:
           - "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-          - "arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser" # manage KMS keys
+
     # A role for the containers
     TaskRole:
       Type: AWS::IAM::Role
@@ -365,7 +364,7 @@ resources:
       Properties:
         ServiceName: !Ref ServiceName
         Cluster: !Ref Cluster
-        TaskDefinition: !Ref TaskDefinition
+        TaskDefinition: !Ref TaskDefinition # applies proper revision because of FAMILY tag in Task
         DeploymentConfiguration:
           MinimumHealthyPercent: 100
           MaximumPercent: 200
@@ -376,7 +375,7 @@ resources:
         NetworkConfiguration:
           AwsvpcConfiguration:
             # change to DISABLED if you're using private subnets that have access to a NAT gateway
-            AssignPublicIp: DISABLED
+            AssignPublicIp: ENABLED
             Subnets:
               - !Ref PrivateSubnetOne
               - !Ref PrivateSubnetTwo
