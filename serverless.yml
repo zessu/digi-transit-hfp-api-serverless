@@ -86,6 +86,12 @@ resources:
     DesiredCount:
       Type: String
       Default: "2"
+    HostedZoneName:
+      Type: String
+      Default: company.com
+    Subdomain:
+      Type: String
+      Default: myservice
 
   Resources:
     VPC:
@@ -272,7 +278,7 @@ resources:
         RequiresCompatibilities:
           - FARGATE
         Cpu: "256"
-        Memory: 0.5GB
+        Memory: 1GB
         ExecutionRoleArn: !Ref ExecutionRole # for ECS
         # "The Amazon Resource Name (ARN) of an AWS Identity and Access Management (IAM) role that grants containers in the task permission to call AWS APIs on your behalf."
         TaskRoleArn: !Ref TaskRole # for task
@@ -335,27 +341,30 @@ resources:
               Action: "sts:AssumeRole"
         ManagedPolicyArns:
           - "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole"
+
     ContainerSecurityGroup:
       Type: AWS::EC2::SecurityGroup
       Properties:
         GroupDescription: !Join ["", [!Ref ServiceName, ContainerSecurityGroup]]
         VpcId: !Ref VPC
-        SecurityGroupIngress:
+        SecurityGroupIngress: # inbound rule
           - IpProtocol: tcp
-            FromPort: 80
-            ToPort: 80
-            SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+            FromPort: 1
+            ToPort: 65535
+            SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup # from ALB
+
     LoadBalancerSecurityGroup:
       Type: AWS::EC2::SecurityGroup
       Properties:
         GroupDescription:
           !Join ["", [!Ref ServiceName, LoadBalancerSecurityGroup]]
         VpcId: !Ref VPC
-        SecurityGroupIngress:
+        SecurityGroupIngress: #inbound rule
           - IpProtocol: tcp
             FromPort: 80
             ToPort: 80
             CidrIp: 0.0.0.0/0
+
     Service:
       Type: AWS::ECS::Service
       # This dependency is needed so that the load balancer is setup correctly in time
@@ -370,13 +379,13 @@ resources:
           MaximumPercent: 200
         DesiredCount: 2
         # This may need to be adjusted if the container takes a while to start up
-        HealthCheckGracePeriodSeconds: 30
+        HealthCheckGracePeriodSeconds: 60
         LaunchType: FARGATE
         NetworkConfiguration:
           AwsvpcConfiguration:
             # change to DISABLED if you're using private subnets that have access to a NAT gateway
-            AssignPublicIp: ENABLED
-            Subnets:
+            AssignPublicIp: DISABLED
+            Subnets: # where the service is going to run our tasks
               - !Ref PrivateSubnetOne
               - !Ref PrivateSubnetTwo
             SecurityGroups:
@@ -385,15 +394,16 @@ resources:
           - ContainerName: !Ref ServiceName
             ContainerPort: 80
             TargetGroupArn: !Ref TargetGroup
+
     TargetGroup:
       Type: AWS::ElasticLoadBalancingV2::TargetGroup
       Properties:
-        HealthCheckIntervalSeconds: 10
-        # will look for a 200 status code by default unless specified otherwise
-        HealthCheckPath: "/health"
-        HealthCheckTimeoutSeconds: 5
-        UnhealthyThresholdCount: 2
-        HealthyThresholdCount: 2
+        # HealthCheckIntervalSeconds: 10
+        # # will look for a 200 status code by default unless specified otherwise
+        # HealthCheckPath: "/health"
+        # HealthCheckTimeoutSeconds: 5
+        # UnhealthyThresholdCount: 2
+        # HealthyThresholdCount: 2
         Name: !Join ["", [!Ref ServiceName, TargetGroup]]
         Port: 80
         Protocol: HTTP
@@ -402,6 +412,7 @@ resources:
             Value: "300" # default is 300
         TargetType: ip
         VpcId: !Ref VPC
+
     ListenerHTTP: # adds listener on load balancer port 80, then forwards to target group
       Type: AWS::ElasticLoadBalancingV2::Listener
       Properties:
@@ -411,6 +422,7 @@ resources:
         LoadBalancerArn: !Ref LoadBalancer
         Port: 80
         Protocol: HTTP
+
     LoadBalancer:
       Type: AWS::ElasticLoadBalancingV2::LoadBalancer
       Properties:
@@ -426,10 +438,12 @@ resources:
         Subnets:
           - !Ref PublicSubnetOne
           - !Ref PublicSubnetTwo
+
     LogGroup:
       Type: AWS::Logs::LogGroup
       Properties:
         LogGroupName: !Join ["", [/ecs/, !Ref ServiceName, TaskDefinition]]
+
     AutoScalingTarget:
       Type: AWS::ApplicationAutoScaling::ScalableTarget
       Properties:
@@ -440,6 +454,7 @@ resources:
         ServiceNamespace: ecs
         # "The Amazon Resource Name (ARN) of an AWS Identity and Access Management (IAM) role that allows Application Auto Scaling to modify your scalable target."
         RoleARN: !GetAtt AutoScalingRole.Arn
+
     AutoScalingPolicy:
       Type: AWS::ApplicationAutoScaling::ScalingPolicy
       Properties:

@@ -1,5 +1,5 @@
 const { workerData, parentPort } = require('worker_threads');
-const AWS = require("aws-sdk");
+const AWS = require('aws-sdk');
 const mqtt = require('mqtt');
 const { v4: uuidv4 } = require('uuid');
 
