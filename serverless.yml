@@ -92,7 +92,7 @@ resources:
       Type: AWS::EC2::VPC
       Properties:
         EnableDnsSupport: true
-        EnableDnsHostnames: true
+        EnableDnsHostnames: false
         CidrBlock: "10.0.0.0/16"
 
     # Two public subnets where load balancer and NAT gateway will run
@@ -290,13 +290,13 @@ resources:
                 awslogs-stream-prefix: ecs
             Environment:
               - Name: "environment"
-                Value: "dev"
+                Value: ${env:environment}
               - Name: "awsAccessKeyId"
-                Value: "AKIAQP4ELOVEE2P3G55D"
+                Value: ${env:awsAccessKeyId}
               - Name: "awsSecretAccessKey"
-                Value: "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"
+                Value: ${env:awsSecretAccessKey}
               - Name: "awsDefaultRegion"
-                Value: "eu-west-1"
+                Value: ${env:awsDefaultRegion}
     # A role needed by ECS
     ExecutionRole:
       Type: AWS::IAM::Role
