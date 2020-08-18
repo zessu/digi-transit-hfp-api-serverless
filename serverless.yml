@@ -106,6 +106,9 @@ resources:
         VpcId: !Ref "VPC"
         CidrBlock: "10.0.0.0/24"
         MapPublicIpOnLaunch: true
+        Tags:
+          - Key: Name
+            Value: "public subnet one"
 
     PublicSubnetTwo:
       Type: AWS::EC2::Subnet
@@ -117,6 +120,9 @@ resources:
         VpcId: !Ref "VPC"
         CidrBlock: "10.0.1.0/24"
         MapPublicIpOnLaunch: true
+        Tags:
+          - Key: Name
+            Value: "public subnet two"
 
     # Two private subnets, where containers will run
     PrivateSubnetOne:
@@ -128,6 +134,9 @@ resources:
             - Fn::GetAZs: { Ref: "AWS::Region" }
         VpcId: !Ref "VPC"
         CidrBlock: "10.0.2.0/24"
+        Tags:
+          - Key: Name
+            Value: "private subnet one"
 
     PrivateSubnetTwo:
       Type: AWS::EC2::Subnet
@@ -138,6 +147,9 @@ resources:
             - Fn::GetAZs: { Ref: "AWS::Region" }
         VpcId: !Ref "VPC"
         CidrBlock: "10.0.3.0/24"
+        Tags:
+          - Key: Name
+            Value: "private subnet two"
 
       # internet gateway
     InternetGateway:
@@ -153,6 +165,9 @@ resources:
       Type: AWS::EC2::RouteTable
       Properties:
         VpcId: !Ref "VPC" # point to vpc
+        Tags:
+          - Key: Name
+            Value: "public route table"
 
     PublicRoute: # public route table definition
       Type: AWS::EC2::Route
@@ -161,6 +176,7 @@ resources:
         RouteTableId: !Ref "PublicRouteTable"
         DestinationCidrBlock: "0.0.0.0/0"
         GatewayId: !Ref "InternetGateway"
+
     # subnet associations to route tables
     PublicSubnetOneRouteTableAssociation:
       Type: AWS::EC2::SubnetRouteTableAssociation
@@ -192,6 +208,9 @@ resources:
       Type: AWS::EC2::RouteTable
       Properties:
         VpcId: !Ref "VPC"
+        Tags:
+          - Key: Name
+            Value: "private route table"
 
     PrivateRoute:
       Type: AWS::EC2::Route
@@ -200,6 +219,7 @@ resources:
         DestinationCidrBlock: "0.0.0.0/0"
         # route traffic through the NAT gateway
         NatGatewayId: !Ref "NATGateway"
+
     PrivateSubnetOneRouteTableAssociation:
       Type: AWS::EC2::SubnetRouteTableAssociation
       Properties:
@@ -268,6 +288,15 @@ resources:
                 awslogs-region: !Ref AWS::Region
                 awslogs-group: !Ref LogGroup
                 awslogs-stream-prefix: ecs
+            Secrets:
+              - Name: "environment"
+                ValueFrom: "arn:aws:secretsmanager:eu-west-1:034100442440:secret:hslpollersecrets-edUXWC"
+              - Name: "awsAccessKeyId"
+                ValueFrom: "arn:aws:secretsmanager:eu-west-1:034100442440:secret:hslpollersecrets-edUXWC"
+              - Name: "awsSecretAccessKey"
+                ValueFrom: "arn:aws:secretsmanager:eu-west-1:034100442440:secret:hslpollersecrets-edUXWC"
+              - Name: "awsDefaultRegion"
+                ValueFrom: "arn:aws:secretsmanager:eu-west-1:034100442440:secret:hslpollersecrets-edUXWC"
     # A role needed by ECS
     ExecutionRole:
       Type: AWS::IAM::Role
