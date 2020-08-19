@@ -3,7 +3,8 @@ const AWS = require('aws-sdk');
 const mqtt = require('mqtt');
 const { v4: uuidv4 } = require('uuid');
 
-//TODO configure time outs for polling
+// TODO configure time outs for polling
+// TODO when journey ends, set status on table correctly
 
 const config = new AWS.Config({
   accessKeyId: process.env.awsAccessKeyId,
@@ -19,77 +20,90 @@ const dynamo = new AWS.DynamoDB.DocumentClient();
 
 // look for existing record of vehicle and don't track if that is the case
 
-const results = dynamo.query({
-  TableName: `TrackedVehicles-${process.env.environment}`,
-  KeyConditionExpression: 'id =: id',
+dynamo.scan({
+  TableName: `Tracked-Vehicles-${process.env.environment}`,
+  FilterExpression: 'veh = :vehicleId',
   ExpressionAttributeValues: {
-    ':id': `${vehicleId}`,
+    ':vehicleId': vehicleId,
   },
-});
+})
+  .promise()
+  .then((data) => {
+    const client = mqtt.connect('mqtt://mqtt.hsl.fi:1883/');
 
-console.log(`results of the query ${JSON.stringify(results)}`);
+    client.on('message', async (topic, message) => {
+      const msgParams = {
+        code: 0,
+        message: `vehicle with id ${workerData}'s tracking commenced`,
+      };
+      parentPort.postMessage(msgParams);
+      const {
+        veh, tst, lat, long, dl, oper,
+      } = JSON.parse(message).VP;
 
-const client = mqtt.connect('mqtt://mqtt.hsl.fi:1883/');
+      const item = {
+        id: uuidv4(),
+        veh,
+        long,
+        lat,
+        tst,
+        dl,
+        oper,
+      };
 
-client.on('message', async (topic, message, packet) => {
-  parentPort.postMessage(`vehicle with id ${workerData}'s tracking commenced`);
+      const params = {
+        TableName: `Transit-Table-${process.env.environment}`,
+        Item: item,
+      };
 
-  console.log('received msg ->>>>>>>>>>>>>>>>>');
-  const {
-    veh, tst, lat, long, dl, oper,
-  } = JSON.parse(message).VP;
+      dynamo.put(params, (err) => {
+        if (err) {
+          // do nothing, wait for next saving iteration
+          console.log(`dynamo error : ${err}`);
+        } else {
+          console.log('saved records to dynamo');
+        }
+      });
+    });
 
-  const data = {
-    id: uuidv4(),
-    veh,
-    long,
-    lat,
-    tst,
-    dl,
-    oper,
-  };
+    client.on('connect', () => {
+      console.log(`connected to the mqtt broker ${client.connected}`);
+    });
 
-  const params = {
-    TableName: `Transit-Table-${process.env.environment}`,
-    Item: data,
-  };
+    client.on('error', (error) => {
+      client.end();
+      process.exit(1); // exit worker process
+    });
 
-  dynamo.put(params, (err) => {
-    if (err) {
-      // do nothing, wait for next saving iteration
-      console.log(`dynamo error : ${err}`);
+    // const options = `/hfp/v2/journey/ongoing/vp/bus/+/+/${vehicleId}/+/+/+/+/3/#`;
+    const topic = `/hfp/v2/journey/ongoing/vp/+/+/${vehicleId}/+/+/+/+/+/3/#`;
+
+    if (data.Count !== 0) {
+      // item record exists in the database
+      const msgParams = {
+        code: 1,
+        message: `Vehicle with id ${vehicleId} is already being tracked`,
+      };
+      parentPort.postMessage(msgParams);
+      // throw new Error(`Vehicle with id ${vehicleId} is already being tracked`);
     } else {
-      console.log('saved records to dynamo');
+      client.subscribe(topic, (err, granted) => {
+        if (err) {
+          process.exit(1);
+        } else {
+          // save record being tracked
+          const params = {
+            TableName: `Tracked-Vehicles-${process.env.environment}`,
+            Item: {
+              id: uuidv4(),
+              veh: vehicleId,
+              status: 'active',
+              time: Date.now(),
+            },
+          };
+          dynamo.put(params).promise().catch((error) => console.log(`<><><><> ${error}`));
+        }
+      });
     }
-  });
-});
-
-client.on('connect', () => {
-  console.log(`connected to the mqtt broker ${client.connected}`);
-});
-
-client.on('error', (error) => {
-  console.log(`${error}`);
-  client.end();
-  process.exit(1); // exit worker process
-});
-
-// const options = `/hfp/v2/journey/ongoing/vp/bus/+/+/${vehicleId}/+/+/+/+/3/#`;
-const topic = `/hfp/v2/journey/ongoing/vp/+/+/${vehicleId}/+/+/+/+/+/3/#`;
-
-console.log(topic);
-
-if (results.Items.length === 0) {
-  // item record exists in the database
-  console.log('already tracking that vehicle');
-  throw new Error(`Vehicle with id ${vehicleId} is already being tracked`);
-} else {
-  client.subscribe(topic, (err, granted) => {
-    if (err) {
-      console.log('there was an error executing this request');
-      process.exit(1);
-    } else {
-      console.log(`tracking started ${JSON.stringify(granted)}`);
-    }
-  });
-}
+  })
+  .catch((error) => console.log(`dynamo returned error ${error} trying to fetch resource`));

@@ -14,6 +14,7 @@ const startPolling = async () => ({
 const requestTracker = async (event) => {
   const { id } = event.pathParameters;
   console.log(`supplied id is ${id}`);
+  // TODO use env vars
   const gatewayResource = 'http://hslpollerLoadBalancer-1683342120.eu-west-1.elb.amazonaws.com';
   const requestUrl = `${gatewayResource}/request/${id}`;
   console.log(`request url ${requestUrl}`);

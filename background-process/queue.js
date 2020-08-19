@@ -5,7 +5,13 @@ module.exports = function queue(workerData) {
     './mqtt.js', { workerData },
   );
   return new Promise((resolve, reject) => {
-    wk.on('message', resolve);
+    wk.on('message', (message) => {
+      if (message.code === 1) { // use this to indicate error
+        reject(message.message);
+      } else {
+        resolve(message.message);
+      }
+    });
     wk.on('error', reject);
     wk.on('exit', (code) => {
       if (code !== 0) {
@@ -15,6 +21,7 @@ module.exports = function queue(workerData) {
   });
 };
 
+// parentPort.postMessage(`vehicle with id ${workerData}'s tracking commenced`);
 // const params = {
 //   prefix: 'hfp',
 //   version: 'v2',
