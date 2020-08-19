@@ -3,7 +3,7 @@ service: vehicle-tracking-boilerplate
 provider:
   name: aws
   runtime: nodejs12.x
-  stage: ${self:custom.Environments.devEnv}
+  stage: ${opt:stage, 'dev'}
   region: eu-west-1
   iamRoleStatements:
     # TODO Fine tune if you want. This only ensure your lambda has access to every service
@@ -11,9 +11,9 @@ provider:
       Action:
         - "*"
       Resource: "*"
-  environment:
-    VEHICLE_STATUS_TABLE: ${self:custom.TransitTable.name}
-    TRACKED_VEHICLES: ${self:custom.TrackingTable.name}
+  # environment:
+  # VEHICLE_STATUS_TABLE: ${self:custom.TransitTable.name}
+  # TRACKED_VEHICLES: ${self:custom.TrackingTable.name}
 
 functions:
   vehicle-tracker-request:
@@ -57,8 +57,6 @@ custom:
   TrackingTable:
     name: !Ref "TrackedVehicles"
     arn: !GetAtt TrackedVehicles.Arn
-  Environments:
-    devEnv: dev
 
 plugins:
   - serverless-webpack
@@ -246,21 +244,29 @@ resources:
         AttributeDefinitions:
           - AttributeName: id
             AttributeType: S
-        KeySchema:
-          - AttributeName: id
-            KeyType: HASH
-
-    TrackedVehicles:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: TrackedVehicles-${self:provider.stage}
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: id
+          - AttributeName: tst
             AttributeType: S
         KeySchema:
           - AttributeName: id
             KeyType: HASH
+          - AttributeName: tst
+            KeyType: RANGE
+
+    TrackedVehicles:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Tracked-Vehicles-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: status
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+          - AttributeName: status
+            KeyType: RANGE
 
     Cluster:
       Type: AWS::ECS::Cluster
