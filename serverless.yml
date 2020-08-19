@@ -23,6 +23,7 @@ functions:
       - http: # creates an API gateway endpoint
           method: GET
           path: /request/{id}
+          cors: true
 
   vehicle-status-poller:
     handler: index.startPolling
