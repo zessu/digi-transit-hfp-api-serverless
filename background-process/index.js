@@ -10,12 +10,18 @@ app.use(bodyParser.json());
 
 app.get('/', (req, res) => {
   console.log('run the / endpoint');
-  res.send('running in fargate !')
+  res.send('running in fargate yay!')
 });
 
 // start polling api
-app.get('/request', (req, res) => {
-  const id = req.body.id;
+app.get('/request/:id', (req, res) => {
+  console.log('you have reached this point');
+  const id = req.params.id;
+  if (!id) {
+    console.log('was not valid, returning error');
+    return new createError.BadRequest('Id parameter is required');
+  }
+  console.log('stuff was valid');
   queue(id)
     .then(message => {
       res.send(message);
@@ -30,4 +36,4 @@ app.get('/response', (req, res) => {
 });
 
 app.listen(80);
-console.log('server is running at port 80');
+// console.log('server is running at port 80');

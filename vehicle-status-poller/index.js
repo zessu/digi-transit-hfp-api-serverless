@@ -9,7 +9,6 @@ const poll = (id) => {
     console.log(`received message ${JSON.parse(message)}`);
   });
 
-
   client.on('connect', () => {
     console.log('connected to the mqtt broker :' + client.connected);
   });

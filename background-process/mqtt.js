@@ -62,7 +62,7 @@ client.on('error', (error) => {
 
 const vehicleId = workerData;
 // const options = `/hfp/v2/journey/ongoing/vp/bus/+/+/${vehicleId}/+/+/+/+/3/#`;
-const topic = `/hfp/v2/journey/ongoing/vp/+/+/${vehicleId}/+/+/+/+/+/0/#`;
+const topic = `/hfp/v2/journey/ongoing/vp/+/+/${vehicleId}/+/+/+/+/+/3/#`;
 
 console.log(topic);
 
@@ -71,6 +71,6 @@ client.subscribe(topic, (err, granted) => {
     console.log('there was an error executing this request');
     process.exit(1);
   } else {
-    console.log(`tracking started ${granted}`);
+    console.log(`tracking started ${JSON.stringify(granted)}`);
   }
 });
