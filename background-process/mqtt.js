@@ -27,6 +27,8 @@ const results = dynamo.query({
   },
 });
 
+console.log(`results of the query ${JSON.stringify(results)}`);
+
 const client = mqtt.connect('mqtt://mqtt.hsl.fi:1883/');
 
 client.on('message', async (topic, message, packet) => {
@@ -79,6 +81,7 @@ console.log(topic);
 
 if (results.Items.length === 0) {
   // item record exists in the database
+  console.log('already tracking that vehicle');
   throw new Error(`Vehicle with id ${vehicleId} is already being tracked`);
 } else {
   client.subscribe(topic, (err, granted) => {
