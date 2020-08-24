@@ -234,12 +234,12 @@ resources:
         TableName: Transit-Table-${self:provider.stage}
         BillingMode: PAY_PER_REQUEST
         AttributeDefinitions:
-          - AttributeName: id
+          - AttributeName: veh
             AttributeType: S
           - AttributeName: tst
             AttributeType: S
         KeySchema:
-          - AttributeName: id
+          - AttributeName: veh
             KeyType: HASH
           - AttributeName: tst
             KeyType: RANGE
@@ -327,6 +327,7 @@ resources:
               Principal:
                 Service: ecs-tasks.amazonaws.com
               Action: "sts:AssumeRole"
+
     # A role needed for auto scaling
     AutoScalingRole:
       Type: AWS::IAM::Role

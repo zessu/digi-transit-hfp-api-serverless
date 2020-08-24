@@ -20,11 +20,13 @@ const dynamo = new AWS.DynamoDB.DocumentClient();
 
 // look for existing record of vehicle and don't track if that is the case
 
-dynamo.scan({
+dynamo.query({
   TableName: `Tracked-Vehicles-${process.env.environment}`,
-  FilterExpression: 'veh = :vehicleId',
+  KeyConditionExpression: 'veh = :vehicleId',
+  FilterExpression: 'status = :status',
   ExpressionAttributeValues: {
     ':vehicleId': vehicleId,
+    ':status': 'active',
   },
 })
   .promise()
@@ -32,6 +34,7 @@ dynamo.scan({
     const client = mqtt.connect('mqtt://mqtt.hsl.fi:1883/');
 
     client.on('message', async (topic, message) => {
+      console.log('client received a message');
       const msgParams = {
         code: 0,
         message: `vehicle with id ${workerData}'s tracking commenced`,
@@ -42,8 +45,7 @@ dynamo.scan({
       } = JSON.parse(message).VP;
 
       const item = {
-        id: uuidv4(),
-        veh,
+        id: veh,
         long,
         lat,
         tst,
@@ -70,7 +72,7 @@ dynamo.scan({
       console.log(`connected to the mqtt broker ${client.connected}`);
     });
 
-    client.on('error', (error) => {
+    client.on('error', () => {
       client.end();
       process.exit(1); // exit worker process
     });
@@ -79,6 +81,7 @@ dynamo.scan({
     const topic = `/hfp/v2/journey/ongoing/vp/+/+/${vehicleId}/+/+/+/+/+/3/#`;
 
     if (data.Count !== 0) {
+      console.log('vehicle already being tracked');
       // item record exists in the database
       const msgParams = {
         code: 1,
@@ -87,7 +90,8 @@ dynamo.scan({
       parentPort.postMessage(msgParams);
       // throw new Error(`Vehicle with id ${vehicleId} is already being tracked`);
     } else {
-      client.subscribe(topic, (err, granted) => {
+      console.log('vehicle not being tracked');
+      client.subscribe(topic, (err) => {
         if (err) {
           process.exit(1);
         } else {
@@ -101,7 +105,7 @@ dynamo.scan({
               time: Date.now(),
             },
           };
-          dynamo.put(params).promise().catch((error) => console.log(`<><><><> ${error}`));
+          dynamo.put(params).promise().catch((error) => console.log(`error ${error} saving to database`));
         }
       });
     }
