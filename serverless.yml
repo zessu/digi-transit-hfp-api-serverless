@@ -25,17 +25,9 @@ functions:
           path: /request/{id}
           cors: true
 
-  vehicle-status-poller:
-    handler: index.startPolling
-    description: "polls vehicle location"
-    events: # events that trigger this action
-      - http: # creates an API gateway endpoint
-          method: GET
-          path: /poll/
-
   vehicle-status-retrieve:
-    handler: index.getVehicleStatus
-    description: "Retrieves location of a vehicle"
+    handler: index.getVehicleLocation
+    description: "Retrieves location of a vehicle (endpoint B)"
     events: # events that trigger this action
       - http: # creates an API gateway endpoint
           method: GET

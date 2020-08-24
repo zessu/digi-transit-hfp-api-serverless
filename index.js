@@ -1,12 +1,7 @@
 import http from 'http';
 import commonMiddleware from './commonMiddleware';
 
-const getVehicleStatus = async () => ({
-  statusCode: 200,
-  body: 'some random string here',
-});
-
-const startPolling = async () => ({
+const getVehicleLocation = async () => ({
   statusCode: 200,
   body: 'some random string here',
 });
@@ -36,6 +31,5 @@ const requestTracker = async (event) => {
   });
 };
 
-exports.startPolling = commonMiddleware(startPolling);
-exports.getVehicleStatus = commonMiddleware(getVehicleStatus);
+exports.getVehicleStatus = commonMiddleware(getVehicleLocation);
 exports.requestTracker = commonMiddleware(requestTracker);
