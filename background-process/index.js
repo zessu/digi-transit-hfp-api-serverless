@@ -20,11 +20,13 @@ app.get('/request/:id', (req, res) => {
   }
   queue(id)
     .then(message => {
+      console.log(`response returned is ${response}`);
       res.send(message);
     })
     .catch(error => {
-      res.send(error);
-      // return new createError.BadRequest(error);
+      console.log(`error returned is ${error}`);
+      // res.send(error);
+      return new createError.BadRequest(error);
     });
 });
 
